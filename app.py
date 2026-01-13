@@ -342,11 +342,79 @@ with tab2:
 # --- TAB 3: INTERACTIVE MAP ---
 with tab3:
     st.subheader("Geospatial View")
+    st.caption(f"Showing {len(df_filtered)} listings based on your filter criteria (independent from Deal Radar slider)")
     
-    map_path = "data/vienna_rent_map.html"
-    if os.path.exists(map_path):
-        with open(map_path, 'r', encoding='utf-8') as f:
-            map_html = f.read()
-        components.html(map_html, height=600, scrolling=False)
+    # Generate dynamic map for filtered listings
+    if not df_filtered.empty and 'dist_center' in df_filtered.columns:
+        try:
+            import folium
+            from streamlit_folium import st_folium
+            
+            # Create map centered on Vienna
+            vienna_map = folium.Map(location=[48.2082, 16.3738], zoom_start=12, tiles='OpenStreetMap')
+            
+            # Add markers for each listing
+            for idx, row in df_filtered.iterrows():
+                # Get approximate coordinates (using district center as proxy)
+                DISTRICT_CENTERS = {
+                    1010: (48.2082, 16.3738), 1020: (48.2167, 16.4167), 1030: (48.1986, 16.3958),
+                    1040: (48.1917, 16.3667), 1050: (48.1889, 16.3556), 1060: (48.1950, 16.3500),
+                    1070: (48.2014, 16.3486), 1080: (48.2111, 16.3472), 1090: (48.2236, 16.3583),
+                    1100: (48.1561, 16.3814), 1110: (48.1692, 16.4383), 1120: (48.1700, 16.3264),
+                    1130: (48.1792, 16.2753), 1140: (48.2086, 16.2625), 1150: (48.1967, 16.3256),
+                    1160: (48.2133, 16.3056), 1170: (48.2289, 16.3056), 1180: (48.2319, 16.3317),
+                    1190: (48.2561, 16.3361), 1200: (48.2389, 16.3756), 1210: (48.2728, 16.4169),
+                    1220: (48.2333, 16.4667), 1230: (48.1403, 16.2911)
+                }
+                
+                district = int(row['district'])
+                if district in DISTRICT_CENTERS:
+                    lat, lon = DISTRICT_CENTERS[district]
+                    
+                    # Determine marker color based on deal score (if available)
+                    if 'deal_score' in df_filtered.columns and pd.notna(row.get('deal_score')):
+                        if row['deal_score'] < -200:
+                            color = 'green'  # Great deal
+                        elif row['deal_score'] < 0:
+                            color = 'lightgreen'  # Good deal
+                        else:
+                            color = 'blue'  # Regular price
+                    else:
+                        color = 'blue'
+                    
+                    # Create popup content
+                    popup_html = f"""
+                    <div style="width: 250px;">
+                        <b>{row['raw_text'][:80]}...</b><br>
+                        <b>Price:</b> €{row['price']:.0f}<br>
+                        <b>Size:</b> {row['size']}m² | <b>Rooms:</b> {row['rooms']}<br>
+                        <b>District:</b> {district}<br>
+                        <b>Price/m²:</b> €{row['price_per_m2']:.2f}<br>
+                    """
+                    
+                    if 'predicted' in df_filtered.columns and pd.notna(row.get('predicted')):
+                        savings = abs(row['deal_score'])
+                        popup_html += f"<b>AI Value:</b> €{row['predicted']:.0f}<br>"
+                        popup_html += f"<b>Savings:</b> €{savings:.0f}<br>"
+                    
+                    popup_html += f'<a href="{row["link"]}" target="_blank">View Listing</a>'
+                    popup_html += "</div>"
+                    
+                    folium.Marker(
+                        location=[lat, lon],
+                        popup=folium.Popup(popup_html, max_width=300),
+                        icon=folium.Icon(color=color, icon='home')
+                    ).add_to(vienna_map)
+            
+            # Display map
+            st_folium(vienna_map, width=None, height=600)
+            
+        except ImportError:
+            st.warning("Map visualization requires folium and streamlit-folium. Showing static map fallback.")
+            map_path = "data/vienna_rent_map.html"
+            if os.path.exists(map_path):
+                with open(map_path, 'r', encoding='utf-8') as f:
+                    map_html = f.read()
+                components.html(map_html, height=600, scrolling=False)
     else:
-        st.warning("Map file not found. It will be generated on the next pipeline run.")
+        st.info("No listings to display on the map. Adjust your filters to see results.")

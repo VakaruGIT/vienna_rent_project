@@ -3,3 +3,5 @@ pandas
 scikit-learn
 altair
 plotly
+folium
+streamlit-folium
