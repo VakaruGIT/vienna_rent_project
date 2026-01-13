@@ -1,5 +1,8 @@
 # Vienna Rent Analysis Project
 
+[![Daily Scrape](https://github.com/VakaruGIT/vienna_rent_project/actions/workflows/daily_scrape.yml/badge.svg)](https://github.com/VakaruGIT/vienna_rent_project/actions/workflows/daily_scrape.yml)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://viennarentproject.streamlit.app/)
+
 Automated data pipeline for scraping, analyzing, and visualizing rental apartment prices across Vienna's 23 districts.
 
 ## Overview
