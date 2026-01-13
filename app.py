@@ -174,7 +174,7 @@ with tab1:
                 data=csv,
                 file_name="vienna_rent_deals.csv",
                 mime="text/csv",
-                use_container_width=True,
+                width="stretch",
                 icon=":material/download:"
             )
     
@@ -207,10 +207,17 @@ with tab1:
             # Sort by biggest savings (negative deal score)
             deals_all = df_filtered.sort_values('deal_score')
             
-            # Control for how many to show
+            # Control for how many to show (handle edge cases with few listings)
             col_a, col_b = st.columns([3, 1])
             with col_a:
-                show_count = st.slider("Number of listings to display", 5, min(100, len(deals_all)), min(20, len(deals_all)))
+                max_listings = len(deals_all)
+                if max_listings <= 5:
+                    show_count = max_listings
+                    st.caption(f"Showing all {max_listings} listings")
+                else:
+                    default_count = min(20, max_listings)
+                    max_count = min(100, max_listings)
+                    show_count = st.slider("Number of listings to display", 5, max_count, default_count)
             with col_b:
                 st.metric("Total Deals", len(deals_all[deals_all['deal_score'] < 0]))
             
@@ -285,7 +292,7 @@ with tab2:
                 color_discrete_sequence=['#1f77b4']
             )
             fig_hist.update_layout(showlegend=False, height=350)
-            st.plotly_chart(fig_hist, use_container_width=True)
+            st.plotly_chart(fig_hist, width="stretch")
         
         with col2:
             st.markdown("#### Size vs Price")
@@ -298,7 +305,7 @@ with tab2:
                 hover_data=['rooms']
             )
             fig_scatter.update_layout(height=350)
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            st.plotly_chart(fig_scatter, width="stretch")
         
         # Row 2: District Comparison
         st.markdown("#### District Comparison")
@@ -321,10 +328,10 @@ with tab2:
             color_continuous_scale='Blues'
         )
         fig_bar.update_layout(height=400)
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, width="stretch")
         
         # Table
-        st.dataframe(district_stats, use_container_width=True)
+        st.dataframe(district_stats, width="stretch")
         
         # Best Value Insight
         if len(district_stats) > 0:
