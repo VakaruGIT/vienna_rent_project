@@ -170,11 +170,12 @@ with tab1:
             
             csv = export_df.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📥 Export Filtered Results",
+                label="Export Filtered Results",
                 data=csv,
                 file_name="vienna_rent_deals.csv",
                 mime="text/csv",
-                use_container_width=True
+                use_container_width=True,
+                icon=":material/download:"
             )
     
     with col_savings:
@@ -183,7 +184,7 @@ with tab1:
             undervalued = df_filtered[df_filtered['deal_score'] < 0]
             if len(undervalued) > 0:
                 total_savings = undervalued['deal_score'].abs().sum()
-                st.metric("💰 Total Potential Savings", f"€{total_savings:,.0f}")
+                st.markdown(f"<div style='text-align: center; padding: 10px; border: 1px solid #ddd; border-radius: 5px;'><i class='fas fa-piggy-bank'></i> <strong>Total Potential Savings</strong><br><span style='font-size: 24px;'>€{total_savings:,.0f}</span></div>", unsafe_allow_html=True)
     
     st.divider()
     
@@ -329,7 +330,7 @@ with tab2:
         if len(district_stats) > 0:
             best_value_district = district_stats['Avg €/m²'].idxmin()
             best_value_price = district_stats.loc[best_value_district, 'Avg €/m²']
-            st.info(f"💡 **Best Value**: District {int(best_value_district)} has the lowest price per m² at €{best_value_price:.2f}/m²")
+            st.info(f"**Best Value**: District {int(best_value_district)} has the lowest price per m² at €{best_value_price:.2f}/m²")
 
 # --- TAB 3: INTERACTIVE MAP ---
 with tab3:
