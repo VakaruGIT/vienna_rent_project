@@ -201,8 +201,12 @@ with tab1:
                             location_parts.append(f"<i class='fas fa-map-marker-alt'></i> {row['dist_center']:.1f}km to center")
                         
                         if 'dist_ubahn' in df_filtered.columns and pd.notna(row.get('dist_ubahn')):
-                            station_name = row.get('nearest_ubahn', 'Unknown')
-                            location_parts.append(f"<i class='fas fa-subway'></i> {row['dist_ubahn']:.1f}km to {station_name}")
+                            # Get station name, fallback to "nearest U-Bahn" if not available
+                            station_name = row.get('nearest_ubahn', '') if 'nearest_ubahn' in df_filtered.columns else ''
+                            if station_name and pd.notna(station_name):
+                                location_parts.append(f"<i class='fas fa-subway'></i> {row['dist_ubahn']:.1f}km to {station_name}")
+                            else:
+                                location_parts.append(f"<i class='fas fa-subway'></i> {row['dist_ubahn']:.1f}km to nearest U-Bahn")
                         
                         if location_parts:
                             st.markdown(" &nbsp;•&nbsp; ".join(location_parts), unsafe_allow_html=True)
