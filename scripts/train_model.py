@@ -7,7 +7,8 @@ from sklearn.metrics import mean_absolute_error, r2_score
 
 # --- CONFIGURATION ---
 MODEL_PATH = "models/rent_price_model.pkl"
-DATA_PATH = "data/vienna_rent_clean.csv"
+HISTORY_PATH = "data/vienna_rent_history.csv"
+CLEAN_PATH = "data/vienna_rent_clean.csv"
 
 # Potential features to use (including new geospatial features)
 CANDIDATE_FEATURES = [
@@ -22,17 +23,31 @@ print("-" * 60)
 print("VIENNA RENT PRICE PREDICTOR - TRAINING")
 print("-" * 60)
 
-# 1. Load Data
+# 1. Load Data (prefer historical, fallback to clean)
 script_dir = os.path.dirname(os.path.abspath(__file__))
-abs_data_path = os.path.join(script_dir, "..", DATA_PATH)
+abs_history_path = os.path.join(script_dir, "..", HISTORY_PATH)
+abs_clean_path = os.path.join(script_dir, "..", CLEAN_PATH)
 abs_model_path = os.path.join(script_dir, "..", MODEL_PATH)
 
-if not os.path.exists(abs_data_path):
-    print(f"ERROR: {abs_data_path} not found.")
+if os.path.exists(abs_history_path):
+    df = pd.read_csv(abs_history_path)
+    print(f"✓ Using historical data: {len(df)} total records")
+    
+    # Deduplicate: keep latest version of each listing
+    if 'fingerprint' in df.columns and 'scraped_date' in df.columns:
+        df = df.sort_values('scraped_date', ascending=False)
+        df = df.drop_duplicates(subset='fingerprint', keep='first')
+        print(f"✓ Deduplicated to {len(df)} unique listings")
+    elif 'fingerprint' in df.columns:
+        df = df.drop_duplicates(subset='fingerprint', keep='last')
+        print(f"✓ Deduplicated to {len(df)} unique listings")
+    
+elif os.path.exists(abs_clean_path):
+    df = pd.read_csv(abs_clean_path)
+    print(f"⚠ Using daily snapshot (no history): {len(df)} listings")
+else:
+    print("ERROR: No training data found")
     exit(1)
-
-df = pd.read_csv(abs_data_path)
-print(f"Loaded {len(df)} listings")
 
 # 2. Validate Features (CRASH PROOF LOGIC)
 available_features = []
