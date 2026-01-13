@@ -5,6 +5,7 @@ import requests
 import json
 import os
 from datetime import datetime
+import numpy as np
 
 # 1. LOAD YOUR DATA
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -40,6 +41,27 @@ district_stats['district_id'] = district_stats['district'].apply(get_district_id
 
 print("District Stats (Top 5):")
 print(district_stats.head())
+
+# --- DYNAMIC BINS BASED ON ACTUAL DATA ---
+min_price = district_stats['avg_sqm_price'].min()
+max_price = district_stats['avg_sqm_price'].max()
+
+print(f"\nPrice range: €{min_price:.2f} - €{max_price:.2f}/m²")
+
+# Create bins that cover the full range + some buffer
+bins = [
+    int(min_price * 0.9),  # Start 10% below minimum
+    int(min_price),
+    int(np.percentile(district_stats['avg_sqm_price'], 25)),
+    int(np.percentile(district_stats['avg_sqm_price'], 50)),
+    int(np.percentile(district_stats['avg_sqm_price'], 75)),
+    int(max_price),
+    int(max_price * 1.1)   # End 10% above maximum
+]
+
+# Remove duplicates and sort
+bins = sorted(list(set(bins)))
+print(f"Using dynamic bins: {bins}")
 
 # --- DISTRICT NAMES (German + Postal Codes) ---
 DISTRICT_NAMES = {
@@ -135,7 +157,7 @@ m.get_root().html.add_child(folium.Element(fontawesome_css))
 # Add alternative tile layers
 folium.TileLayer('OpenStreetMap', name='Street Map').add_to(m)
 
-# LAYER 1: HEATMAP (with better color bins)
+# LAYER 1: HEATMAP (with dynamic bins)
 choropleth = folium.Choropleth(
     geo_data=vienna_geo,
     name="District Heatmap",
@@ -149,7 +171,7 @@ choropleth = folium.Choropleth(
     legend_name="Avg Rent (€/m²)",
     nan_fill_color="#cccccc",
     highlight=True,
-    bins=[10, 15, 18, 21, 25, 30, 40]  # Custom bins for better visualization
+    bins=bins  # Dynamic bins calculated from actual data
 ).add_to(m)
 
 # ENHANCED TOOLTIP with district names
