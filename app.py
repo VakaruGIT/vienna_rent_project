@@ -215,8 +215,7 @@ with tab1:
                     show_count = max_listings
                     st.caption(f"Showing all {max_listings} listings")
                 else:
-                    max_count = min(100, max_listings)
-                    show_count = st.slider("Number of listings to display", 5, max_count, max_count)
+                    show_count = st.slider("Number of listings to display", 5, max_listings, max_listings)
             with col_b:
                 st.metric("Total Deals", len(deals_all[deals_all['deal_score'] < 0]))
             
