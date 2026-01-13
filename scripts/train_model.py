@@ -9,8 +9,12 @@ from sklearn.metrics import mean_absolute_error, r2_score
 MODEL_PATH = "models/rent_price_model.pkl"
 DATA_PATH = "data/vienna_rent_clean.csv"
 
-# Potential features to use
-CANDIDATE_FEATURES = ['size', 'rooms', 'district', 'has_outdoor', 'is_neubau', 'is_furnished']
+# Potential features to use (including new geospatial features)
+CANDIDATE_FEATURES = [
+    'size', 'rooms', 'district', 'has_outdoor', 'is_neubau', 'is_furnished',
+    'dist_center',  # Distance to city center (Stephansplatz)
+    'dist_ubahn'    # Distance to nearest U-Bahn station
+]
 TARGET = 'price'
 # ---------------------
 
@@ -75,6 +79,16 @@ print(f"Model Performance:")
 print(f"R2 Score: {r2:.3f}")
 print(f"Avg Error: +/- {mae:.2f} Euro")
 print("-" * 30)
+
+# Feature importance
+print("\nFeature Importance:")
+feature_importance = pd.DataFrame({
+    'feature': available_features,
+    'importance': model.feature_importances_
+}).sort_values('importance', ascending=False)
+
+for _, row in feature_importance.iterrows():
+    print(f"  {row['feature']:20s}: {row['importance']*100:5.1f}%")
 
 # 6. Save Model
 with open(abs_model_path, 'wb') as f:
