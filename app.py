@@ -147,13 +147,45 @@ col3.metric("Avg. Price/m²", f"€{df_filtered['price_per_m2'].mean():.2f}", bo
 col4.metric("Cheapest Found", f"€{df_filtered['price'].min():,.0f}", border=True)
 
 # --- 5. TABS ---
-# Reduced to just the two core features
-tab1, tab2 = st.tabs(["Deal Radar", "Interactive Map"])
+tab1, tab2, tab3 = st.tabs(["Deal Radar", "Analytics", "Interactive Map"])
 
 # --- TAB 1: DEAL RADAR (The Money Maker) ---
 with tab1:
     st.subheader("Undervalued Opportunities")
     st.write("Listings where the Asking Price is significantly lower than the AI Predicted Value.")
+    
+    # Export and savings summary
+    col_export, col_savings = st.columns([2, 1])
+    with col_export:
+        if not df_filtered.empty:
+            # Prepare export data
+            export_df = df_filtered[['raw_text', 'district', 'price', 'size', 'rooms', 'price_per_m2', 'link']].copy()
+            if 'predicted' in df_filtered.columns:
+                export_df['predicted_value'] = df_filtered['predicted']
+                export_df['potential_savings'] = df_filtered['deal_score'].abs()
+            if 'dist_center' in df_filtered.columns:
+                export_df['km_to_center'] = df_filtered['dist_center']
+            if 'nearest_ubahn' in df_filtered.columns:
+                export_df['nearest_ubahn'] = df_filtered['nearest_ubahn']
+            
+            csv = export_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Export Filtered Results",
+                data=csv,
+                file_name="vienna_rent_deals.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+    
+    with col_savings:
+        # Calculate total savings
+        if model and 'deal_score' in df_filtered.columns:
+            undervalued = df_filtered[df_filtered['deal_score'] < 0]
+            if len(undervalued) > 0:
+                total_savings = undervalued['deal_score'].abs().sum()
+                st.metric("💰 Total Potential Savings", f"€{total_savings:,.0f}")
+    
+    st.divider()
     
     # Check if any listings match filters
     if df_filtered.empty:
@@ -231,8 +263,76 @@ with tab1:
         else:
             st.warning("Geospatial features missing. Please run the pipeline to generate them.")
 
-# --- TAB 2: INTERACTIVE MAP ---
+# --- TAB 2: ANALYTICS ---
 with tab2:
+    st.subheader("Market Analytics")
+    
+    if df_filtered.empty:
+        st.warning("No data to display. Adjust your filters.")
+    else:
+        # Row 1: Price Distribution
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Price Distribution")
+            import plotly.express as px
+            fig_hist = px.histogram(
+                df_filtered, 
+                x='price', 
+                nbins=30,
+                labels={'price': 'Monthly Rent (€)'},
+                color_discrete_sequence=['#1f77b4']
+            )
+            fig_hist.update_layout(showlegend=False, height=350)
+            st.plotly_chart(fig_hist, use_container_width=True)
+        
+        with col2:
+            st.markdown("#### Size vs Price")
+            fig_scatter = px.scatter(
+                df_filtered,
+                x='size',
+                y='price',
+                color='district',
+                labels={'size': 'Size (m²)', 'price': 'Monthly Rent (€)', 'district': 'District'},
+                hover_data=['rooms']
+            )
+            fig_scatter.update_layout(height=350)
+            st.plotly_chart(fig_scatter, use_container_width=True)
+        
+        # Row 2: District Comparison
+        st.markdown("#### District Comparison")
+        district_stats = df_filtered.groupby('district').agg({
+            'price': 'mean',
+            'price_per_m2': 'mean',
+            'size': 'mean',
+            'link': 'count'
+        }).round(2)
+        district_stats.columns = ['Avg Rent (€)', 'Avg €/m²', 'Avg Size (m²)', 'Listings']
+        district_stats = district_stats.sort_values('Avg Rent (€)', ascending=False)
+        
+        # Bar chart
+        fig_bar = px.bar(
+            district_stats.reset_index(),
+            x='district',
+            y='Avg Rent (€)',
+            labels={'district': 'District', 'Avg Rent (€)': 'Average Monthly Rent (€)'},
+            color='Avg Rent (€)',
+            color_continuous_scale='Blues'
+        )
+        fig_bar.update_layout(height=400)
+        st.plotly_chart(fig_bar, use_container_width=True)
+        
+        # Table
+        st.dataframe(district_stats, use_container_width=True)
+        
+        # Best Value Insight
+        if len(district_stats) > 0:
+            best_value_district = district_stats['Avg €/m²'].idxmin()
+            best_value_price = district_stats.loc[best_value_district, 'Avg €/m²']
+            st.info(f"💡 **Best Value**: District {int(best_value_district)} has the lowest price per m² at €{best_value_price:.2f}/m²")
+
+# --- TAB 3: INTERACTIVE MAP ---
+with tab3:
     st.subheader("Geospatial View")
     
     map_path = "data/vienna_rent_map.html"
