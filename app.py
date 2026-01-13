@@ -215,9 +215,8 @@ with tab1:
                     show_count = max_listings
                     st.caption(f"Showing all {max_listings} listings")
                 else:
-                    default_count = min(20, max_listings)
                     max_count = min(100, max_listings)
-                    show_count = st.slider("Number of listings to display", 5, max_count, default_count)
+                    show_count = st.slider("Number of listings to display", 5, max_count, max_count)
             with col_b:
                 st.metric("Total Deals", len(deals_all[deals_all['deal_score'] < 0]))
             
@@ -342,7 +341,7 @@ with tab2:
 # --- TAB 3: INTERACTIVE MAP ---
 with tab3:
     st.subheader("Geospatial View")
-    st.caption("Showing all listings in Vienna (independent from filters)")
+    st.caption("View all apartments by default (independent from filters)")
     
     map_path = "data/vienna_rent_map.html"
     if os.path.exists(map_path):
