@@ -194,22 +194,31 @@ with tab1:
                         st.markdown(f"**#{idx}. {row['raw_text']}**")
                         st.text(f"District {int(row['district'])} | {row['size']}m² | {row['rooms']} Rooms")
                         
-                        # Location details with icons
-                        location_parts = []
+                        # Location details - ALWAYS show if columns exist
+                        location_info = []
                         
-                        # Distance to center
-                        if pd.notna(row.get('dist_center')):
-                            location_parts.append(f"<i class='fas fa-map-marker-alt'></i> {row['dist_center']:.1f}km to center")
+                        # Center distance
+                        try:
+                            if 'dist_center' in row.index and pd.notna(row['dist_center']):
+                                location_info.append(f"📍 {row['dist_center']:.1f}km to center")
+                        except:
+                            pass
                         
-                        # Distance to U-Bahn
-                        if pd.notna(row.get('dist_ubahn')):
-                            station_name = row.get('nearest_ubahn', '')
-                            if station_name and station_name != '':
-                                location_parts.append(f"<i class='fas fa-subway'></i> {row['dist_ubahn']:.1f}km to {station_name}")
+                        # U-Bahn distance
+                        try:
+                            if 'dist_ubahn' in row.index and pd.notna(row['dist_ubahn']):
+                                station_info = f"🚇 {row['dist_ubahn']:.1f}km"
+                                if 'nearest_ubahn' in row.index and pd.notna(row['nearest_ubahn']):
+                                    station_info += f" to {row['nearest_ubahn']}"
+                                else:
+                                    station_info += " to U-Bahn"
+                                location_info.append(station_info)
+                        except:
+                            pass
                         
-                        # Display location info
-                        if location_parts:
-                            st.markdown(" &nbsp;•&nbsp; ".join(location_parts), unsafe_allow_html=True)
+                        # Show location info
+                        if location_info:
+                            st.caption(" • ".join(location_info))
                         
                         st.link_button("Open Listing", row['link'])
                     
