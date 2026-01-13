@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
 
 # --- CONFIGURATION ---
-MODEL_PATH = "models/rent_price_model.pkl"
+MODEL_PATH = "data/rent_price_model.pkl"
 DATA_PATH = "data/vienna_rent_clean.csv"
 
 # Potential features to use
@@ -36,6 +36,7 @@ print("Checking features...")
 for f in CANDIDATE_FEATURES:
     if f in df.columns:
         available_features.append(f)
+        print(f"  [OK] {f}")
     else:
         print(f"  [MISSING] {f} (Skipping)")
 

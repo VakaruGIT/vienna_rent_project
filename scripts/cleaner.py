@@ -5,11 +5,12 @@ import hashlib
 
 # Setup paths
 script_dir = os.path.dirname(os.path.abspath(__file__))
+# Read from RAW, Save to CLEAN
 raw_path = os.path.join(script_dir, "..", "data", "vienna_rent_raw.csv")
 clean_path = os.path.join(script_dir, "..", "data", "vienna_rent_clean.csv")
 
 if not os.path.exists(raw_path):
-    print("ERROR: Raw data file not found.")
+    print(f"ERROR: Raw data file not found at {raw_path}")
     exit(1)
 
 df = pd.read_csv(raw_path)
