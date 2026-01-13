@@ -1,87 +1,76 @@
-"""
-Historical Tracker - Appends today's clean data to long-term database
-Run this after scraper.py + cleaner.py to maintain historical timeline
-"""
-
 import pandas as pd
 import os
 from datetime import datetime
 
-# Get script directory for relative paths
 script_dir = os.path.dirname(os.path.abspath(__file__))
 clean_path = os.path.join(script_dir, "..", "data", "vienna_rent_clean.csv")
 history_path = os.path.join(script_dir, "..", "data", "vienna_rent_history.csv")
 
-print("=" * 70)
-print("HISTORICAL TRACKER - Adding today's data to timeline")
-print("=" * 70)
+print("-" * 60)
+print("HISTORICAL TRACKER")
+print("-" * 60)
 
-# 1. Load today's clean data
 if not os.path.exists(clean_path):
-    print(f"❌ Error: {clean_path} not found")
-    print("   Run cleaner.py first!")
+    print(f"ERROR: {clean_path} not found")
     exit(1)
 
 df_today = pd.read_csv(clean_path)
 df_today['snapshot_date'] = datetime.now().strftime('%Y-%m-%d')
 
-print(f"\n📊 Today's data loaded: {len(df_today)} listings")
-
-# 2. Load or create history
+# Load History
 if os.path.exists(history_path):
     df_history = pd.read_csv(history_path)
-    print(f"📚 Existing history: {len(df_history):,} records")
+    print(f"Existing history: {len(df_history)} records")
     
-    # Append today's data
+    # --- INTELLIGENT TRACKING ---
+    if 'fingerprint' in df_history.columns:
+        history_fingerprints = set(df_history['fingerprint'])
+        history_links = set(df_history['link'])
+        
+        # 1. True New Listings (New Physical Property)
+        true_new = df_today[~df_today['fingerprint'].isin(history_fingerprints)]
+        
+        # 2. Re-uploads (Old Property, New Link)
+        reuploads = df_today[
+            (df_today['fingerprint'].isin(history_fingerprints)) & 
+            (~df_today['link'].isin(history_links))
+        ]
+        
+        if not true_new.empty:
+            print(f"\nALERT: {len(true_new)} TRULY NEW LISTINGS FOUND")
+            # Show inner city deals
+            deals = true_new[
+                (true_new['district'].isin([1010, 1020, 1030, 1040, 1050, 1060, 1070])) & 
+                (true_new['price'] < 1000)
+            ]
+            if not deals.empty:
+                print("POSSIBLE DEALS (Inner Districts < 1000 Euro):")
+                for _, row in deals.iterrows():
+                    print(f" - {row['price']} Euro | {row['district']} | {row['size']}m2 | {row['link']}")
+        
+        if not reuploads.empty:
+            print(f"\nINFO: Detected {len(reuploads)} re-uploaded ads (same flat, new link).")
+            
+    else:
+        print("Legacy history file detected. Fingerprints will be added.")
+
+    # Combine
     df_combined = pd.concat([df_history, df_today], ignore_index=True)
     
-    # Remove duplicates (same listing on same day)
+    # DEDUPLICATION
+    # If fingerprint exists multiple times, keep the LAST one (most recent link/date)
     before_dedup = len(df_combined)
-    df_combined = df_combined.drop_duplicates(subset=['link', 'snapshot_date'], keep='last')
-    dedup_count = before_dedup - len(df_combined)
+    df_combined = df_combined.sort_values('snapshot_date')
+    df_combined = df_combined.drop_duplicates(subset=['fingerprint'], keep='last')
     
-    if dedup_count > 0:
-        print(f"🔄 Removed {dedup_count} duplicate entries")
-    
+    print(f"Database updated. Total unique active listings: {len(df_combined)}")
+
 else:
-    print("📝 Creating new history file (first run)")
+    print("Creating new history file.")
     df_combined = df_today
 
-# 3. Calculate insights
-unique_listings = df_combined['link'].nunique()
-date_range_start = df_combined['snapshot_date'].min()
-date_range_end = df_combined['snapshot_date'].max()
-total_snapshots = df_combined['snapshot_date'].nunique()
-
-# 4. Save
+# Save
 df_combined.to_csv(history_path, index=False)
-
-print("\n" + "=" * 70)
-print("✅ HISTORY UPDATED SUCCESSFULLY")
-print("=" * 70)
-print(f"\nToday's listings added:        {len(df_today)}")
-print(f"Total historical records:      {len(df_combined):,}")
-print(f"Unique listings ever seen:     {unique_listings:,}")
-print(f"Total snapshots (days):        {total_snapshots}")
-print(f"Date range:                    {date_range_start} → {date_range_end}")
-
-# 5. Per-district breakdown
-if len(df_today) > 0:
-    district_today = df_today['district'].value_counts().head(5)
-    print(f"\n📍 Top districts today:")
-    for district, count in district_today.items():
-        print(f"   {district}: {count} listings")
-
-# 6. Price trends (if we have multiple days)
-if total_snapshots > 1:
-    print(f"\n📈 Historical trends available:")
-    print(f"   {len(df_combined):,} records across {total_snapshots} days")
-    print(f"   Use this data for ML training and market analysis!")
-
-print("\n" + "=" * 70)
-print("NEXT STEPS:")
-print("=" * 70)
-print("• Run this daily to build your historical database")
-print("• Use vienna_rent_history.csv for ML training")
-print("• Analyze trends: price changes, seasonal patterns, listing velocity")
-print("=" * 70)
+print("-" * 60)
+print("TRACKING COMPLETE")
+print("-" * 60)
