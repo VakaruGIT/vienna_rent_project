@@ -47,9 +47,9 @@ with st.sidebar:
         
         # Filter Data
         if sel_dist:
-            df_filtered = df[df['district'].isin(sel_dist)]
+            df_filtered = df[df['district'].isin(sel_dist)].copy()
         else:
-            df_filtered = df # Show all if none selected
+            df_filtered = df.copy() # Show all if none selected
             
         df_filtered = df_filtered[df_filtered['price'].between(price_rng[0], price_rng[1])]
         
