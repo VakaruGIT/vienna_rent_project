@@ -200,14 +200,14 @@ with tab1:
                         # Center distance
                         try:
                             if 'dist_center' in row.index and pd.notna(row['dist_center']):
-                                location_info.append(f"📍 {row['dist_center']:.1f}km to center")
+                                location_info.append(f"<i class='fas fa-map-marker-alt'></i> {row['dist_center']:.1f}km to center")
                         except:
                             pass
                         
                         # U-Bahn distance
                         try:
                             if 'dist_ubahn' in row.index and pd.notna(row['dist_ubahn']):
-                                station_info = f"🚇 {row['dist_ubahn']:.1f}km"
+                                station_info = f"<i class='fas fa-subway'></i> {row['dist_ubahn']:.1f}km"
                                 if 'nearest_ubahn' in row.index and pd.notna(row['nearest_ubahn']):
                                     station_info += f" to {row['nearest_ubahn']}"
                                 else:
@@ -218,7 +218,7 @@ with tab1:
                         
                         # Show location info
                         if location_info:
-                            st.caption(" • ".join(location_info))
+                            st.markdown(" &nbsp;•&nbsp; ".join(location_info), unsafe_allow_html=True)
                         
                         st.link_button("Open Listing", row['link'])
                     
