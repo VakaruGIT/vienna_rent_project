@@ -129,6 +129,11 @@ with st.sidebar:
 st.title("Vienna Rent Intelligence")
 st.caption(f"Market Snapshot: {pd.to_datetime('now').strftime('%Y-%m-%d')}")
 
+# Check if filtered dataset is empty
+if df_filtered.empty:
+    st.error("No listings match your current filter criteria. Please adjust the filters in the sidebar.")
+    st.stop()
+
 # KPI Row
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Active Listings", len(df_filtered), border=True)
@@ -145,7 +150,10 @@ with tab1:
     st.subheader("Undervalued Opportunities")
     st.write("Listings where the Asking Price is significantly lower than the AI Predicted Value.")
     
-    if model:
+    # Check if any listings match filters
+    if df_filtered.empty:
+        st.warning("No listings match your current filters. Try adjusting the criteria.")
+    elif model:
         # Use features from model metadata, or fallback to basic features
         if model_features:
             req_cols = model_features
