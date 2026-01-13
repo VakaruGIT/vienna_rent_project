@@ -18,7 +18,7 @@ CHECKPOINT_EVERY = 3  # Save progress every N pages
 # ---------------------
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-output_path = os.path.join(script_dir, "..", "data", "vienna_rent.csv")
+output_path = os.path.join(script_dir, "..", "data", "vienna_rent_raw.csv")
 checkpoint_path = os.path.join(script_dir, "..", "data", "scrape_checkpoint.csv")
 
 def load_existing_links():

@@ -5,7 +5,7 @@ import os
 # Get the directory where this script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 # Build path relative to script location
-data_path = os.path.join(script_dir, "..", "data", "vienna_rent.csv")
+data_path = os.path.join(script_dir, "..", "data", "vienna_rent_raw.csv")
 
 # 1. LOAD THE RAW ORE
 df = pd.read_csv(data_path)

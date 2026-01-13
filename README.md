@@ -1,32 +1,39 @@
 # Vienna Rent Analysis Project
 
-A comprehensive data pipeline for scraping, analyzing, and visualizing rental apartment prices across Vienna's 23 districts.
+A streamlined data pipeline for scraping, analyzing, and visualizing rental apartment prices across Vienna's 23 districts.
 
 ## Overview
 
-This project automates the collection and analysis of rental listings from willhaben.at, providing insights into Vienna's rental market through data extraction, feature engineering, statistical analysis, and interactive mapping.
+This project automates the collection and analysis of rental listings from willhaben.at, providing insights into Vienna's rental market through data extraction, feature engineering, historical tracking, and interactive mapping.
 
 ## Features
 
 - **Web Scraping**: Automated collection of rental listings with anti-detection measures
 - **Data Cleaning**: Regex-based extraction of structured features from raw text
+- **Historical Tracking**: Build long-term database for trend analysis and ML training
 - **Feature Engineering**: 13+ extracted features including rooms, outdoor space, building type, floor level
 - **Statistical Analysis**: Price comparisons, premium calculations, market insights
 - **Interactive Mapping**: Color-coded heatmap visualization with district-level statistics
+- **Machine Learning**: Price prediction model trained on historical data
 
 ## Project Structure
 
 ```
 vienna_rent_project/
 ├── data/
-│   ├── vienna_rent.csv              # Raw scraped data
-│   ├── vienna_rent_clean.csv        # Cleaned and processed data
+│   ├── vienna_rent_raw.csv          # Today's fresh scrape (temp)
+│   ├── vienna_rent_clean.csv        # Latest processed data
+│   ├── vienna_rent_history.csv      # Historical database (append-only)
 │   ├── vienna_rent_map.html         # Interactive map visualization
+│   ├── rent_price_model.pkl         # Trained ML model
 │   └── vienna_geo_cache.json        # Cached Vienna district boundaries
 ├── scripts/
 │   ├── scraper.py                   # Web scraping script
 │   ├── cleaner.py                   # Data cleaning and feature extraction
+│   ├── tracker.py                   # Historical data tracker
+│   ├── train_model.py               # ML model training
 │   └── mapper.py                    # Map generation
+├── archive/                         # Old/experimental scripts
 ├── requirements.txt                 # Python dependencies
 └── README.md
 ```
@@ -59,6 +66,40 @@ pip install -r requirements.txt
 
 ## Usage
 
+### Daily Workflow (Recommended)
+
+Run these scripts in sequence to collect and track data:
+
+```bash
+# 1. Scrape today's listings
+python scripts/scraper.py
+
+# 2. Process the raw data
+python scripts/cleaner.py
+
+# 3. Add to historical database
+python scripts/tracker.py
+```
+
+**Run this daily** to build your historical dataset for:
+- Trend analysis (price changes over time)
+- ML model training (more data = better predictions)
+- Market insights (listing velocity, seasonal patterns)
+
+### On-Demand Analysis
+
+Generate visualizations and predictions whenever needed:
+
+```bash
+# Generate interactive map
+python scripts/mapper.py
+
+# Train/update ML price prediction model
+python scripts/train_model.py
+```
+
+---
+
 ### 1. Scrape Rental Listings
 
 ```bash
@@ -70,7 +111,7 @@ python scripts/scraper.py
 - Runs in headless mode for faster execution
 - Deduplicates listings automatically
 - Saves checkpoints every 3 pages for crash recovery
-- Merges with existing data to build historical dataset
+- Merges with existing data to avoid re-scraping
 
 **Configuration:**
 ```python
@@ -79,7 +120,7 @@ HEADLESS = True          # Run without browser window
 CHECKPOINT_EVERY = 3     # Save progress frequency
 ```
 
-**Output:** `data/vienna_rent.csv` (raw data with ~16 columns)
+**Output:** [`data/vienna_rent_raw.csv`](data/vienna_rent_raw.csv) (~300 listings per run)
 
 ### 2. Clean and Extract Features
 
@@ -96,9 +137,25 @@ python scripts/cleaner.py
 - Lease type: temporary (befristet) vs permanent
 - Furnishing: furnished (möbliert) vs unfurnished
 
-**Output:** `data/vienna_rent_clean.csv` with statistical insights printed to console
+**Output:** [`data/vienna_rent_clean.csv`](data/vienna_rent_clean.csv) with statistical insights
 
-### 3. Generate Interactive Map
+### 3. Track Historical Data
+
+```bash
+python scripts/tracker.py
+```
+
+**Purpose:** Appends today's clean data to the long-term historical database.
+
+**Why This Matters:**
+- Enables ML model training (more data = better accuracy)
+- Tracks market trends (price changes over time)
+- Analyzes listing velocity (how fast apartments rent)
+- Identifies seasonal patterns (summer dips, autumn spikes)
+
+**Output:** [`data/vienna_rent_history.csv`](data/vienna_rent_history.csv) (append-only, never delete!)
+
+### 4. Generate Interactive Map
 
 ```bash
 python scripts/mapper.py
@@ -112,11 +169,33 @@ python scripts/mapper.py
 - Fullscreen mode, minimap, measurement tool
 - Summary statistics panel
 
-**Output:** `data/vienna_rent_map.html` (open in browser)
+**Output:** [`data/vienna_rent_map.html`](data/vienna_rent_map.html) (open in browser)
+
+### 5. Train ML Price Prediction Model
+
+```bash
+python scripts/train_model.py
+```
+
+**Features:**
+- Random Forest regression model
+- Feature importance analysis
+- Model performance metrics (R², MAE)
+- Saves trained model for reuse
+
+**Output:** 
+- [`data/rent_price_model.pkl`](data/rent_price_model.pkl) - Trained model
+- [`data/model_info.pkl`](data/model_info.pkl) - Feature names and metadata
+
+**Expected Performance:**
+- R² Score: 0.75-0.85 (with sufficient historical data)
+- Most important feature: apartment size (80%+ importance)
+
+---
 
 ## Data Schema
 
-### Raw Data (vienna_rent.csv)
+### Raw Data (vienna_rent_raw.csv)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -140,6 +219,13 @@ Additional derived columns:
 - `has_outdoor`: Combined outdoor space indicator
 - `floor`: Floor level (0 = ground floor)
 - `is_temporary`: Temporary lease flag
+
+### Historical Data (vienna_rent_history.csv)
+
+Same schema as clean data, plus:
+- `snapshot_date`: Date when scraped (YYYY-MM-DD)
+
+**Critical:** This file grows over time. Never delete it - it's your competitive advantage for ML training and trend analysis.
 
 ## Key Insights
 
@@ -199,12 +285,13 @@ Full list in `requirements.txt`
 
 ## Future Enhancements
 
-Potential improvements:
-- Historical trend tracking (price changes over time)
-- Machine learning price prediction model
-- Email alerts for new listings matching criteria
-- Comparison with other Austrian cities
-- Integration with public transport data (commute times)
+Potential next steps:
+- **Streamlit Dashboard**: Interactive web app for price calculator and market trends
+- **GitHub Actions Automation**: Daily automated scraping
+- **GPS Distance Calculations**: Add proximity to U-Bahn/S-Bahn stations
+- **Deep Scraper Integration**: Extract additional features from detail pages (elevator, parking, energy rating)
+- **Alert System**: Email notifications for new listings matching criteria
+- **Multi-City Comparison**: Expand to Graz, Salzburg, Linz
 
 ## License
 

@@ -41,6 +41,18 @@ district_stats['district_id'] = district_stats['district'].apply(get_district_id
 print("District Stats (Top 5):")
 print(district_stats.head())
 
+# --- DISTRICT NAMES (German + Postal Codes) ---
+DISTRICT_NAMES = {
+    1010: "Innere Stadt", 1020: "Leopoldstadt", 1030: "Landstraße",
+    1040: "Wieden", 1050: "Margareten", 1060: "Mariahilf",
+    1070: "Neubau", 1080: "Josefstadt", 1090: "Alsergrund",
+    1100: "Favoriten", 1110: "Simmering", 1120: "Meidling",
+    1130: "Hietzing", 1140: "Penzing", 1150: "Rudolfsheim-Fünfhaus",
+    1160: "Ottakring", 1170: "Hernals", 1180: "Währing",
+    1190: "Döbling", 1200: "Brigittenau", 1210: "Floridsdorf",
+    1220: "Donaustadt", 1230: "Liesing"
+}
+
 # --- COORDINATES FOR MARKERS ---
 DISTRICT_CENTERS = {
     1010: [48.208174, 16.373819], 1020: [48.216667, 16.416667], 1030: [48.198611, 16.395833],
@@ -77,13 +89,19 @@ else:
         print("Cannot proceed without map data.")
         exit(1)
 
-# --- MERGE DATA INTO GEOJSON (Enhanced with all statistics) ---
+# --- MERGE DATA INTO GEOJSON (Enhanced with district names and all statistics) ---
 for feature in vienna_geo['features']:
     bez_id = int(feature['properties']['BEZNR'])
     row = district_stats[district_stats['district_id'] == bez_id]
     
+    # Get district info
+    postal_code = 1000 + (bez_id * 10)
+    district_name = DISTRICT_NAMES.get(postal_code, f"District {bez_id}")
+    
     if not row.empty:
         r = row.iloc[0]
+        feature['properties']['district_name'] = district_name
+        feature['properties']['postal_code'] = postal_code
         feature['properties']['avg_price'] = round(r['avg_sqm_price'], 2)
         feature['properties']['median_price'] = round(r['median_sqm_price'], 2)
         feature['properties']['price_range'] = f"{r['min_sqm_price']:.1f} - {r['max_sqm_price']:.1f}"
@@ -91,6 +109,8 @@ for feature in vienna_geo['features']:
         feature['properties']['cheapest'] = round(r['cheapest_rent'], 0)
         feature['properties']['median_rent'] = round(r['median_rent'], 0)
     else:
+        feature['properties']['district_name'] = district_name
+        feature['properties']['postal_code'] = postal_code
         feature['properties']['avg_price'] = "No Data"
         feature['properties']['median_price'] = "No Data"
         feature['properties']['price_range'] = "No Data"
@@ -106,13 +126,19 @@ m = folium.Map(
     control_scale=True
 )
 
+# Add Font Awesome CSS for professional icons
+fontawesome_css = """
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+"""
+m.get_root().html.add_child(folium.Element(fontawesome_css))
+
 # Add alternative tile layers
 folium.TileLayer('OpenStreetMap', name='Street Map').add_to(m)
 
 # LAYER 1: HEATMAP (with better color bins)
 choropleth = folium.Choropleth(
     geo_data=vienna_geo,
-    name="Rent Price Heatmap",
+    name="District Heatmap",
     data=district_stats,
     columns=["district_id", "avg_sqm_price"],
     key_on="feature.properties.BEZNR",
@@ -120,33 +146,112 @@ choropleth = folium.Choropleth(
     fill_opacity=0.7,
     line_opacity=0.5,
     line_color='black',
-    legend_name="Average Rent (€/m²)",
+    legend_name="Avg Rent (€/m²)",
     nan_fill_color="#cccccc",
     highlight=True,
     bins=[10, 15, 18, 21, 25, 30, 40]  # Custom bins for better visualization
 ).add_to(m)
 
-# ENHANCED TOOLTIP with all statistics
+# ENHANCED TOOLTIP with district names
 folium.GeoJsonTooltip(
-    fields=['BEZ', 'avg_price', 'median_price', 'price_range', 'count'],
-    aliases=['District:', 'Avg €/m²:', 'Median €/m²:', 'Range €/m²:', 'Listings:'],
+    fields=['district_name', 'postal_code', 'avg_price', 'median_price', 'count'],
+    aliases=['District:', 'Postal Code:', 'Avg €/m²:', 'Median €/m²:', 'Listings:'],
     style="background-color: white; color: #333333; font-family: arial; font-size: 13px; padding: 12px; border: 2px solid #333;"
 ).add_to(choropleth.geojson)
 
-# ENHANCED POPUP with detailed info on click
-folium.GeoJsonPopup(
-    fields=['BEZ', 'avg_price', 'median_price', 'cheapest', 'median_rent', 'count'],
-    aliases=['<b>District</b>', 'Avg Price/m²', 'Median Price/m²', 'Cheapest Total Rent', 'Median Total Rent', 'Listings Found'],
-    style="background-color: #f0f0f0;",
-    labels=True
-).add_to(choropleth.geojson)
+# ENHANCED POPUP with district listings on click
+def create_district_popup(district_code, district_name):
+    """Generate HTML popup showing top listings in this district"""
+    district_listings = df[df['district'] == district_code].copy()
+    
+    if district_listings.empty:
+        return f"<h4>{district_name} ({int(district_code)})</h4><p>No listings found</p>"
+    
+    # Calculate value score (lower price per m² = better value)
+    district_listings['value_score'] = 1 / district_listings['price_per_m2']
+    district_listings = district_listings.sort_values('value_score', ascending=False).head(10)
+    
+    # Build HTML table
+    html = f"""
+    <div style="font-family: Arial; font-size: 12px; max-width: 450px; max-height: 400px; overflow-y: auto;">
+        <h3 style="margin: 0 0 10px 0; color: #2c3e50;">{district_name} ({int(district_code)})</h3>
+        <p style="margin: 5px 0; color: #666;"><b>Top 10 Best Value Listings:</b></p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <tr style="background: #34495e; color: white;">
+                <th style="padding: 6px; text-align: left;">€</th>
+                <th style="padding: 6px;">m²</th>
+                <th style="padding: 6px;">Rooms</th>
+                <th style="padding: 6px;">€/m²</th>
+                <th style="padding: 6px;">Features</th>
+                <th style="padding: 6px;">Link</th>
+            </tr>
+    """
+    
+    for idx, row in district_listings.iterrows():
+        # Features icons (Font Awesome)
+        features = []
+        if row.get('has_outdoor', 0) == 1:
+            features.append('<i class="fas fa-tree" style="color: #27ae60;" title="Outdoor Space"></i>')
+        if row.get('is_furnished', 0) == 1:
+            features.append('<i class="fas fa-couch" style="color: #e67e22;" title="Furnished"></i>')
+        if row.get('is_neubau', 0) == 1:
+            features.append('<i class="fas fa-building" style="color: #3498db;" title="New Building"></i>')
+        features_str = ' '.join(features) if features else '-'
+        
+        rooms = int(row['rooms']) if pd.notna(row['rooms']) else '?'
+        size = int(row['size']) if pd.notna(row['size']) else '?'
+        
+        html += f"""
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 6px;"><b>€{int(row['price'])}</b></td>
+                <td style="padding: 6px; text-align: center;">{size}</td>
+                <td style="padding: 6px; text-align: center;">{rooms}</td>
+                <td style="padding: 6px; text-align: center;">€{row['price_per_m2']:.1f}</td>
+                <td style="padding: 6px; text-align: center;">{features_str}</td>
+                <td style="padding: 6px; text-align: center;"><a href="{row['link']}" target="_blank" title="View on willhaben.at"><i class="fas fa-external-link-alt" style="color: #3498db;"></i></a></td>
+            </tr>
+        """
+    
+    html += """
+        </table>
+        <p style="margin: 10px 0 0 0; font-size: 10px; color: #888;">
+            <i class="fas fa-tree" style="color: #27ae60;"></i>=Outdoor 
+            <i class="fas fa-couch" style="color: #e67e22;"></i>=Furnished 
+            <i class="fas fa-building" style="color: #3498db;"></i>=Neubau | 
+            Click <i class="fas fa-external-link-alt"></i> to view listing
+        </p>
+    </div>
+    """
+    return html
 
-# FEATURE 2: BEST DEAL MARKERS (Improved with better info)
-marker_group = folium.FeatureGroup(name="District Markers", show=True)
+# Create invisible popup layer (grouped so it doesn't clutter layer control)
+popup_group = folium.FeatureGroup(name="District Popups", show=True, overlay=True, control=False)
+
+# Apply popups to districts
+for feature in vienna_geo['features']:
+    bez_id = int(feature['properties']['BEZNR'])
+    postal_code = 1000 + (bez_id * 10)
+    district_name = feature['properties'].get('district_name', f"District {bez_id}")
+    
+    popup_html = create_district_popup(postal_code, district_name)
+    
+    # Add invisible clickable layer for popups
+    folium.GeoJson(
+        feature,
+        style_function=lambda x: {'fillOpacity': 0, 'weight': 0, 'opacity': 0},  # Completely invisible
+        popup=folium.Popup(popup_html, max_width=500)
+    ).add_to(popup_group)
+
+popup_group.add_to(m)
+
+# FEATURE 2: DISTRICT SUMMARY MARKERS (with names)
+district_marker_group = folium.FeatureGroup(name="District Info", show=True)
 
 for _, row in district_stats.iterrows():
     dist_code = int(row['district'])
     if dist_code in DISTRICT_CENTERS:
+        district_name = DISTRICT_NAMES.get(dist_code, f"District {dist_code}")
+        
         # Color code by price: green=cheap, yellow=medium, red=expensive
         avg_price = row['avg_sqm_price']
         if avg_price < 18:
@@ -157,8 +262,9 @@ for _, row in district_stats.iterrows():
             color, icon_color = 'red', 'white'
         
         popup_html = f"""
-        <div style="font-family: Arial; font-size: 13px; min-width: 200px;">
-            <h4 style="margin: 0 0 10px 0; color: #333;">District {dist_code}</h4>
+        <div style="font-family: Arial; font-size: 13px; min-width: 220px;">
+            <h4 style="margin: 0 0 10px 0; color: #333;">{district_name}</h4>
+            <p style="margin: 0 0 8px 0; color: #666; font-size: 11px;">Postal Code: {dist_code}</p>
             <table style="width: 100%; border-collapse: collapse;">
                 <tr><td><b>Avg €/m²:</b></td><td>€{row['avg_sqm_price']:.2f}</td></tr>
                 <tr><td><b>Median €/m²:</b></td><td>€{row['median_sqm_price']:.2f}</td></tr>
@@ -171,38 +277,95 @@ for _, row in district_stats.iterrows():
         
         folium.Marker(
             location=DISTRICT_CENTERS[dist_code],
-            popup=folium.Popup(popup_html, max_width=250),
-            tooltip=f"District {dist_code}: €{row['avg_sqm_price']:.1f}/m²",
-            icon=folium.Icon(color=color, icon="home", prefix='glyphicon', icon_color=icon_color)
-        ).add_to(marker_group)
+            popup=folium.Popup(popup_html, max_width=280),
+            tooltip=f"{district_name}: €{row['avg_sqm_price']:.1f}/m²",
+            icon=folium.Icon(color=color, icon="info-sign", prefix='glyphicon', icon_color=icon_color)
+        ).add_to(district_marker_group)
 
-marker_group.add_to(m)
+district_marker_group.add_to(m)
+
+# FEATURE 3: INDIVIDUAL LISTING MARKERS (NEW!)
+listings_group = folium.FeatureGroup(name="All Apartments", show=False)
+
+# Calculate "value score" for all listings
+df['value_score'] = df.apply(lambda x: (
+    (1 / x['price_per_m2']) * 100 +  # Lower price per m² is better
+    (10 if x.get('has_outdoor', 0) == 1 else 0) +  # Outdoor bonus
+    (5 if x.get('is_furnished', 0) == 1 else 0)  # Furnished bonus
+), axis=1)
+
+# Show top 100 best value listings
+top_listings = df.nlargest(100, 'value_score')
+
+for idx, row in top_listings.iterrows():
+    dist_code = int(row['district']) if pd.notna(row['district']) else 1010
+    
+    # Use approximate location (add small random offset from district center)
+    import random
+    if dist_code in DISTRICT_CENTERS:
+        base_loc = DISTRICT_CENTERS[dist_code]
+        # Random offset ±0.01 degrees (~1km)
+        lat = base_loc[0] + random.uniform(-0.01, 0.01)
+        lon = base_loc[1] + random.uniform(-0.01, 0.01)
+    else:
+        continue
+    
+    # Color by value score
+    if row['value_score'] > 70:
+        marker_color = 'green'
+    elif row['value_score'] > 50:
+        marker_color = 'lightgreen'
+    else:
+        marker_color = 'orange'
+    
+    # Build feature icons (Font Awesome)
+    features = []
+    if row.get('has_outdoor', 0) == 1:
+        features.append('<i class="fas fa-tree" style="color: #27ae60;"></i> Outdoor Space')
+    if row.get('is_furnished', 0) == 1:
+        features.append('<i class="fas fa-couch" style="color: #e67e22;"></i> Furnished')
+    if row.get('is_neubau', 0) == 1:
+        features.append('<i class="fas fa-building" style="color: #3498db;"></i> New Building')
+    features_text = '<br>'.join(features) if features else '<span style="color: #999;">No special features</span>'
+    
+    rooms = int(row['rooms']) if pd.notna(row['rooms']) else '?'
+    size = int(row['size']) if pd.notna(row['size']) else '?'
+    
+    popup_html = f"""
+    <div style="font-family: Arial; font-size: 12px; min-width: 200px;">
+        <h4 style="margin: 0 0 8px 0; color: #2c3e50;">€{int(row['price'])} / month</h4>
+        <table style="width: 100%; font-size: 11px;">
+            <tr><td><b>Size:</b></td><td>{size} m²</td></tr>
+            <tr><td><b>Rooms:</b></td><td>{rooms}</td></tr>
+            <tr><td><b>Price/m²:</b></td><td>€{row['price_per_m2']:.2f}</td></tr>
+            <tr><td><b>District:</b></td><td>{DISTRICT_NAMES.get(dist_code, dist_code)}</td></tr>
+        </table>
+        <p style="margin: 8px 0; font-size: 11px;">{features_text}</p>
+        <a href="{row['link']}" target="_blank" style="display: inline-block; background: #3498db; color: white; padding: 6px 12px; text-decoration: none; border-radius: 3px; margin-top: 5px;">View Listing →</a>
+    </div>
+    """
+    
+    folium.CircleMarker(
+        location=[lat, lon],
+        radius=6,
+        popup=folium.Popup(popup_html, max_width=250),
+        tooltip=f"€{int(row['price'])} | {rooms}R | {size}m²",
+        color=marker_color,
+        fill=True,
+        fillColor=marker_color,
+        fillOpacity=0.7,
+        weight=2
+    ).add_to(listings_group)
+
+listings_group.add_to(m)
 
 # Add advanced controls
 plugins.Fullscreen(position='topright').add_to(m)
 plugins.MiniMap(toggle_display=True, position='bottomright').add_to(m)
 plugins.MeasureControl(position='topleft', primary_length_unit='meters').add_to(m)
 
-# Add statistics summary box
-stats_html = f"""
-<div style="position: fixed; top: 10px; left: 60px; width: 280px; background-color: white; 
-     border: 2px solid grey; z-index: 9999; padding: 15px; border-radius: 5px; box-shadow: 3px 3px 10px rgba(0,0,0,0.3);">
-    <h4 style="margin: 0 0 10px 0;">Vienna Rent Analysis</h4>
-    <table style="width: 100%; font-size: 12px;">
-        <tr><td><b>Total Listings:</b></td><td>{len(df)}</td></tr>
-        <tr><td><b>Districts Covered:</b></td><td>{len(district_stats)}</td></tr>
-        <tr><td><b>Avg Price/m²:</b></td><td>€{df['price_per_m2'].mean():.2f}</td></tr>
-        <tr><td><b>Median Price/m²:</b></td><td>€{df['price_per_m2'].median():.2f}</td></tr>
-        <tr><td><b>Cheapest District:</b></td><td>{district_stats.loc[district_stats['avg_sqm_price'].idxmin(), 'district']:.0f} (€{district_stats['avg_sqm_price'].min():.1f}/m²)</td></tr>
-        <tr><td><b>Most Expensive:</b></td><td>{district_stats.loc[district_stats['avg_sqm_price'].idxmax(), 'district']:.0f} (€{district_stats['avg_sqm_price'].max():.1f}/m²)</td></tr>
-    </table>
-    <p style="font-size: 10px; margin: 10px 0 0 0; color: #666;">Data scraped: {datetime.now().strftime('%Y-%m-%d')}</p>
-</div>
-"""
-m.get_root().html.add_child(folium.Element(stats_html))
-
-# Layer control (must be last)
-folium.LayerControl(position='topright', collapsed=False).add_to(m)
+# Layer control (collapsed by default for cleaner look)
+folium.LayerControl(position='topright', collapsed=True).add_to(m)
 
 # 6. SAVE
 output_path = os.path.join(script_dir, "..", "data", "vienna_rent_map.html")
