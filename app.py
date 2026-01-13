@@ -42,24 +42,82 @@ model = model_data['model'] if model_data else None
 model_features = model_data['features'] if model_data else None
 
 # --- 3. SIDEBAR CONTROLS ---
+# District name mapping
+DISTRICT_NAMES = {
+    1: "Innere Stadt", 2: "Leopoldstadt", 3: "Landstraße", 4: "Wieden", 5: "Margareten",
+    6: "Mariahilf", 7: "Neubau", 8: "Josefstadt", 9: "Alsergrund", 10: "Favoriten",
+    11: "Simmering", 12: "Meidling", 13: "Hietzing", 14: "Penzing", 15: "Rudolfsheim-Fünfhaus",
+    16: "Ottakring", 17: "Hernals", 18: "Währing", 19: "Döbling", 20: "Brigittenau",
+    21: "Floridsdorf", 22: "Donaustadt", 23: "Liesing"
+}
+
 with st.sidebar:
     st.header("Filters")
     
     if df is not None:
+        # District filter with names
         districts = sorted(df['district'].unique())
-        # CHANGED: Default is empty (means ALL districts selected)
-        sel_dist = st.multiselect("Select Districts", districts, default=[])
+        district_options = [f"{d} ({DISTRICT_NAMES.get(d, 'Unknown')})" for d in districts]
+        sel_dist_display = st.multiselect("Districts", district_options, default=[])
+        sel_dist = [int(d.split()[0]) for d in sel_dist_display] if sel_dist_display else []
         
+        # Price range filter
         min_p, max_p = int(df['price'].min()), int(df['price'].max())
         price_rng = st.slider("Price Range (€)", min_p, max_p, (500, 2500))
         
-        # Filter Data
-        if sel_dist:
-            df_filtered = df[df['district'].isin(sel_dist)].copy()
+        # Rooms filter
+        if 'rooms' in df.columns:
+            min_r, max_r = int(df['rooms'].min()), int(df['rooms'].max())
+            rooms_rng = st.slider("Rooms", min_r, max_r, (min_r, max_r))
         else:
-            df_filtered = df.copy() # Show all if none selected
+            rooms_rng = None
+        
+        # Size filter
+        if 'size' in df.columns:
+            min_s, max_s = int(df['size'].min()), int(df['size'].max())
+            size_rng = st.slider("Size (m²)", min_s, max_s, (min_s, max_s))
+        else:
+            size_rng = None
+        
+        # Boolean filters
+        st.subheader("Features")
+        if 'has_outdoor' in df.columns:
+            outdoor_filter = st.checkbox("Has Outdoor Space", value=False)
+        else:
+            outdoor_filter = False
+            
+        if 'is_furnished' in df.columns:
+            furnished_filter = st.checkbox("Furnished", value=False)
+        else:
+            furnished_filter = False
+            
+        if 'is_neubau' in df.columns:
+            neubau_filter = st.checkbox("New Construction", value=False)
+        else:
+            neubau_filter = False
+        
+        # Apply Filters
+        df_filtered = df.copy()
+        
+        if sel_dist:
+            df_filtered = df_filtered[df_filtered['district'].isin(sel_dist)]
             
         df_filtered = df_filtered[df_filtered['price'].between(price_rng[0], price_rng[1])]
+        
+        if rooms_rng:
+            df_filtered = df_filtered[df_filtered['rooms'].between(rooms_rng[0], rooms_rng[1])]
+            
+        if size_rng:
+            df_filtered = df_filtered[df_filtered['size'].between(size_rng[0], size_rng[1])]
+        
+        if outdoor_filter:
+            df_filtered = df_filtered[df_filtered['has_outdoor'] == True]
+            
+        if furnished_filter:
+            df_filtered = df_filtered[df_filtered['is_furnished'] == True]
+            
+        if neubau_filter:
+            df_filtered = df_filtered[df_filtered['is_neubau'] == True]
         
         st.divider()
         st.caption(f"Analyzing {len(df_filtered)} listings")
