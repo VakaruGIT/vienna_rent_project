@@ -153,24 +153,6 @@ df['is_furnished'] = df['raw_text'].apply(is_furnished)
 # Calculate metrics
 df['price_per_m2'] = df['price'] / df['size']
 
-# --- FILTER EXTREME OUTLIERS ---
-# Remove listings with price_per_m2 > 3 standard deviations from mean
-mean_price = df['price_per_m2'].mean()
-std_price = df['price_per_m2'].std()
-upper_limit = mean_price + (3 * std_price)
-lower_limit = max(0, mean_price - (3 * std_price))
-
-print(f"\nFiltering outliers:")
-print(f"  Price/m² range: €{lower_limit:.2f} - €{upper_limit:.2f}")
-
-outliers = df[(df['price_per_m2'] > upper_limit) | (df['price_per_m2'] < lower_limit)]
-if not outliers.empty:
-    print(f"  Removing {len(outliers)} extreme outliers:")
-    for _, row in outliers.head(5).iterrows():
-        print(f"    - €{row['price']:.0f} for {row['size']:.0f}m² (€{row['price_per_m2']:.2f}/m²)")
-
-df = df[(df['price_per_m2'] >= lower_limit) & (df['price_per_m2'] <= upper_limit)]
-
 # Geospatial features
 print("Calculating geospatial features...")
 df['dist_center'] = df['district'].apply(calculate_dist_center)
