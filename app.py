@@ -200,13 +200,14 @@ with tab1:
                         if 'dist_center' in df_filtered.columns and pd.notna(row.get('dist_center')):
                             location_parts.append(f"<i class='fas fa-map-marker-alt'></i> {row['dist_center']:.1f}km to center")
                         
-                        if 'dist_ubahn' in df_filtered.columns and pd.notna(row.get('dist_ubahn')):
-                            # Get station name, fallback to "nearest U-Bahn" if not available
-                            station_name = row.get('nearest_ubahn', '') if 'nearest_ubahn' in df_filtered.columns else ''
-                            if station_name and pd.notna(station_name):
-                                location_parts.append(f"<i class='fas fa-subway'></i> {row['dist_ubahn']:.1f}km to {station_name}")
-                            else:
-                                location_parts.append(f"<i class='fas fa-subway'></i> {row['dist_ubahn']:.1f}km to nearest U-Bahn")
+                        # Only show U-Bahn distance if we have the station name
+                        if ('nearest_ubahn' in df_filtered.columns and 
+                            pd.notna(row.get('nearest_ubahn')) and 
+                            row.get('nearest_ubahn') != '' and
+                            'dist_ubahn' in df_filtered.columns and 
+                            pd.notna(row.get('dist_ubahn'))):
+                            station_name = row['nearest_ubahn']
+                            location_parts.append(f"<i class='fas fa-subway'></i> {row['dist_ubahn']:.1f}km to {station_name}")
                         
                         if location_parts:
                             st.markdown(" &nbsp;•&nbsp; ".join(location_parts), unsafe_allow_html=True)
