@@ -1,85 +1,81 @@
 import pandas as pd
-import re
+import pickle
 import os
-import hashlib
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error, r2_score
 
-# Setup paths
+# --- CONFIGURATION ---
+MODEL_PATH = "data/rent_price_model.pkl"
+DATA_PATH = "data/vienna_rent_clean.csv"
+
+# Potential features to use
+CANDIDATE_FEATURES = ['size', 'rooms', 'district', 'has_outdoor', 'is_neubau', 'is_furnished']
+TARGET = 'price'
+# ---------------------
+
+print("-" * 60)
+print("VIENNA RENT PRICE PREDICTOR - TRAINING")
+print("-" * 60)
+
+# 1. Load Data
 script_dir = os.path.dirname(os.path.abspath(__file__))
-raw_path = os.path.join(script_dir, "..", "data", "vienna_rent_raw.csv")
-clean_path = os.path.join(script_dir, "..", "data", "vienna_rent_clean.csv")
+abs_data_path = os.path.join(script_dir, "..", DATA_PATH)
+abs_model_path = os.path.join(script_dir, "..", MODEL_PATH)
 
-if not os.path.exists(raw_path):
-    print("ERROR: Raw data file not found.")
+if not os.path.exists(abs_data_path):
+    print(f"ERROR: {abs_data_path} not found.")
     exit(1)
 
-df = pd.read_csv(raw_path)
+df = pd.read_csv(abs_data_path)
+print(f"Loaded {len(df)} listings")
 
-# --- EXTRACTION FUNCTIONS ---
+# 2. Validate Features
+available_features = []
+for f in CANDIDATE_FEATURES:
+    if f in df.columns:
+        available_features.append(f)
+    else:
+        print(f"WARNING: Feature '{f}' not found in CSV. Skipping.")
 
-def extract_price(text):
-    match = re.search(r'€\s*([\d.,]+)', text)
-    if match:
-        clean_num = match.group(1).replace('.', '').replace(',', '.')
-        return float(clean_num)
-    return None
+if not available_features:
+    print("ERROR: No valid features found to train on.")
+    exit(1)
 
-def extract_size(text):
-    match = re.search(r'(\d+)\s*m²', text)
-    if match:
-        return float(match.group(1))
-    return None
+print(f"Training on features: {available_features}")
 
-def extract_district(text):
-    match = re.search(r'(1\d{3})', text)
-    if match:
-        return int(match.group(1))
-    return None
+# 3. Clean Data for Training
+# Drop rows where target or features are missing
+df_train = df.dropna(subset=available_features + [TARGET])
 
-def extract_rooms(text):
-    match = re.search(r'(\d+)\s*(?:Zimmer|Zi)', text, re.IGNORECASE)
-    if match:
-        return int(match.group(1))
-    return None
+# Filter outliers (Top 1% most expensive) to improve accuracy
+p99 = df_train[TARGET].quantile(0.99)
+df_train = df_train[df_train[TARGET] < p99]
 
-def has_outdoor(text):
-    keywords = ['balkon', 'terrasse', 'loggia', 'garten', 'dachhaut']
-    text_lower = text.lower()
-    for word in keywords:
-        if word in text_lower:
-            return 1
-    return 0
+X = df_train[available_features]
+y = df_train[TARGET]
 
-def is_neubau(text):
-    if 'neubau' in text.lower():
-        return 1
-    return 0
+print(f"Training set size after filtering: {len(df_train)}")
 
-def create_fingerprint(row):
-    # Unique ID based on physical attributes
-    unique_string = f"{row['district']}_{row['size']}_{row['rooms']}_{row['price']}"
-    return hashlib.md5(unique_string.encode()).hexdigest()[:10]
+# 4. Train Model
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# --- EXECUTION ---
-print("Cleaning data...")
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
 
-df['price'] = df['raw_text'].apply(extract_price)
-df['size'] = df['raw_text'].apply(extract_size)
-df['district'] = df['raw_text'].apply(extract_district)
-df['rooms'] = df['raw_text'].apply(extract_rooms)
-df['has_outdoor'] = df['raw_text'].apply(has_outdoor)
-df['is_neubau'] = df['raw_text'].apply(is_neubau)
+# 5. Evaluate
+predictions = model.predict(X_test)
+mae = mean_absolute_error(y_test, predictions)
+r2 = r2_score(y_test, predictions)
 
-# Calculate metrics
-df['price_per_m2'] = df['price'] / df['size']
+print("-" * 30)
+print(f"Model Performance:")
+print(f"R2 Score: {r2:.3f} (0=Bad, 1=Perfect)")
+print(f"Avg Error: +/- {mae:.2f} Euro")
+print("-" * 30)
 
-# Create Fingerprint for tracking
-print("Generating property fingerprints...")
-df['fingerprint'] = df.apply(create_fingerprint, axis=1)
+# 6. Save Model
+with open(abs_model_path, 'wb') as f:
+    pickle.dump(model, f)
 
-# Drop invalid rows
-df = df.dropna(subset=['price', 'size', 'district'])
-
-# Save
-df.to_csv(clean_path, index=False)
-print(f"Data cleaned and saved to: {clean_path}")
-print(f"Valid rows: {len(df)}")
+print(f"SUCCESS: Model saved to {MODEL_PATH}")
