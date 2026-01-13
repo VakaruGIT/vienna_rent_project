@@ -285,7 +285,7 @@ for _, row in district_stats.iterrows():
 district_marker_group.add_to(m)
 
 # FEATURE 3: INDIVIDUAL LISTING MARKERS (NEW!)
-listings_group = folium.FeatureGroup(name="All Apartments", show=False)
+listings_group = folium.FeatureGroup(name="All Apartments", show=True)
 
 # Calculate "value score" for all listings
 df['value_score'] = df.apply(lambda x: (
