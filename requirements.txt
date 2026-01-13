@@ -12,6 +12,7 @@ folium==0.15.1
 # Machine learning
 scikit-learn==1.4.0
 
-# Dashboard (The new stuff)
+# Dashboard 
 streamlit
 streamlit-folium
+altair
