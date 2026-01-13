@@ -27,11 +27,19 @@ def load_model():
     for path in paths:
         if os.path.exists(path):
             with open(path, "rb") as f:
-                return pickle.load(f)
+                model_data = pickle.load(f)
+                # Handle both old (just model) and new (dict with metadata) formats
+                if isinstance(model_data, dict):
+                    return model_data
+                else:
+                    # Old format: wrap in dict for compatibility
+                    return {'model': model_data, 'features': None}
     return None
 
 df = load_data()
-model = load_model()
+model_data = load_model()
+model = model_data['model'] if model_data else None
+model_features = model_data['features'] if model_data else None
 
 # --- 3. SIDEBAR CONTROLS ---
 with st.sidebar:
@@ -80,7 +88,12 @@ with tab1:
     st.write("Listings where the Asking Price is significantly lower than the AI Predicted Value.")
     
     if model:
-        req_cols = ['size', 'rooms', 'district', 'has_outdoor', 'is_neubau', 'is_furnished', 'dist_center', 'dist_ubahn']
+        # Use features from model metadata, or fallback to basic features
+        if model_features:
+            req_cols = model_features
+        else:
+            # Fallback for old models without metadata
+            req_cols = ['size', 'rooms', 'district', 'has_outdoor', 'is_neubau', 'is_furnished']
         
         if all(col in df_filtered.columns for col in req_cols):
             X = df_filtered[req_cols]

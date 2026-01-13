@@ -105,8 +105,17 @@ feature_importance = pd.DataFrame({
 for _, row in feature_importance.iterrows():
     print(f"  {row['feature']:20s}: {row['importance']*100:5.1f}%")
 
-# 6. Save Model
+# 6. Save Model with Metadata
+model_package = {
+    'model': model,
+    'features': available_features,
+    'r2_score': r2,
+    'mae': mae,
+    'trained_on': pd.Timestamp.now().isoformat()
+}
+
 with open(abs_model_path, 'wb') as f:
-    pickle.dump(model, f)
+    pickle.dump(model_package, f)
 
 print(f"SUCCESS: Model saved to {MODEL_PATH}")
+print(f"Features stored: {available_features}")
