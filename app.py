@@ -11,6 +11,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Load Font Awesome for icons
+st.markdown("""
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+""", unsafe_allow_html=True)
+
 # --- 2. LOAD DATA & MODEL ---
 @st.cache_data
 def load_data():
@@ -186,17 +191,21 @@ with tab1:
                     c1, c2, c3 = st.columns([3, 1, 1])
                     
                     with c1:
-                        st.markdown(f"**{row['raw_text']}**")
-                        st.text(f"District {row['district']} | {row['size']}m² | {row['rooms']} Rooms")
+                        st.markdown(f"**#{idx}. {row['raw_text']}**")
+                        st.text(f"District {int(row['district'])} | {row['size']}m² | {row['rooms']} Rooms")
                         
-                        # Location details
-                        location_info = []
+                        # Location details with clear labels
+                        location_parts = []
+                        
                         if 'dist_center' in df_filtered.columns and pd.notna(row.get('dist_center')):
-                            location_info.append(f"📍 {row['dist_center']:.1f}km from center")
-                        if 'nearest_ubahn' in df_filtered.columns and pd.notna(row.get('nearest_ubahn')):
-                            location_info.append(f"🚇 {row['nearest_ubahn']} ({row.get('dist_ubahn', 0):.1f}km)")
-                        if location_info:
-                            st.caption(" • ".join(location_info))
+                            location_parts.append(f"<i class='fas fa-map-marker-alt'></i> {row['dist_center']:.1f}km to center")
+                        
+                        if 'dist_ubahn' in df_filtered.columns and pd.notna(row.get('dist_ubahn')):
+                            station_name = row.get('nearest_ubahn', 'Unknown')
+                            location_parts.append(f"<i class='fas fa-subway'></i> {row['dist_ubahn']:.1f}km to {station_name}")
+                        
+                        if location_parts:
+                            st.markdown(" &nbsp;•&nbsp; ".join(location_parts), unsafe_allow_html=True)
                         
                         st.link_button("Open Listing", row['link'])
                     
