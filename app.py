@@ -179,6 +179,16 @@ with tab1:
                     with c1:
                         st.markdown(f"**{row['raw_text']}**")
                         st.text(f"District {row['district']} | {row['size']}m² | {row['rooms']} Rooms")
+                        
+                        # Location details
+                        location_info = []
+                        if 'dist_center' in df_filtered.columns and pd.notna(row.get('dist_center')):
+                            location_info.append(f"📍 {row['dist_center']:.1f}km from center")
+                        if 'nearest_ubahn' in df_filtered.columns and pd.notna(row.get('nearest_ubahn')):
+                            location_info.append(f"🚇 {row['nearest_ubahn']} ({row.get('dist_ubahn', 0):.1f}km)")
+                        if location_info:
+                            st.caption(" • ".join(location_info))
+                        
                         st.link_button("Open Listing", row['link'])
                     
                     with c2:

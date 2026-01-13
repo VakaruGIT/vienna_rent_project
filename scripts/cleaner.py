@@ -26,18 +26,18 @@ DISTRICT_CENTERS = {
     1220: (48.2333, 16.4667), 1230: (48.1403, 16.2911)
 }
 
-# Major U-Bahn stations (U1, U2, U3, U4, U6 key stations)
+# Major U-Bahn stations (name, lat, lon, lines)
 UBAHN_STATIONS = [
-    (48.2082, 16.3738),  # Stephansplatz (U1/U3)
-    (48.2100, 16.3789),  # Schwedenplatz (U1/U4)
-    (48.1985, 16.3706),  # Karlsplatz (U1/U2/U4)
-    (48.2133, 16.3833),  # Praterstern (U1/U2)
-    (48.2267, 16.3803),  # Nestroyplatz (U1)
-    (48.1854, 16.3767),  # Südtiroler Platz (U1)
-    (48.2389, 16.3756),  # Floridsdorf (U6)
-    (48.1906, 16.3389),  # Längenfeldgasse (U4/U6)
-    (48.2133, 16.3333),  # Nußdorfer Straße (U6)
-    (48.1733, 16.3378),  # Meidling (U4/U6)
+    ("Stephansplatz", 48.2082, 16.3738, "U1/U3"),
+    ("Schwedenplatz", 48.2100, 16.3789, "U1/U4"),
+    ("Karlsplatz", 48.1985, 16.3706, "U1/U2/U4"),
+    ("Praterstern", 48.2133, 16.3833, "U1/U2"),
+    ("Nestroyplatz", 48.2267, 16.3803, "U1"),
+    ("Südtiroler Platz", 48.1854, 16.3767, "U1"),
+    ("Floridsdorf", 48.2389, 16.3756, "U6"),
+    ("Längenfeldgasse", 48.1906, 16.3389, "U4/U6"),
+    ("Nußdorfer Straße", 48.2133, 16.3333, "U6"),
+    ("Meidling", 48.1733, 16.3378, "U4/U6"),
 ]
 
 if not os.path.exists(raw_path):
@@ -124,18 +124,20 @@ def calculate_dist_center(district_code):
 def calculate_dist_ubahn(district_code):
     """Calculate distance from district center to nearest U-Bahn station"""
     if district_code not in DISTRICT_CENTERS:
-        return None
+        return None, None
     
     district_lat, district_lon = DISTRICT_CENTERS[district_code]
     
     # Find nearest U-Bahn station
     min_distance = float('inf')
-    for station_lat, station_lon in UBAHN_STATIONS:
+    nearest_station = None
+    for name, station_lat, station_lon, lines in UBAHN_STATIONS:
         dist = haversine_distance(district_lat, district_lon, station_lat, station_lon)
         if dist < min_distance:
             min_distance = dist
+            nearest_station = f"{name} ({lines})"
     
-    return min_distance
+    return min_distance, nearest_station
 
 # --- EXECUTION ---
 print("Cleaning data...")
@@ -154,7 +156,9 @@ df['price_per_m2'] = df['price'] / df['size']
 # Geospatial features
 print("Calculating geospatial features...")
 df['dist_center'] = df['district'].apply(calculate_dist_center)
-df['dist_ubahn'] = df['district'].apply(calculate_dist_ubahn)
+ubahn_data = df['district'].apply(lambda d: calculate_dist_ubahn(d))
+df['dist_ubahn'] = ubahn_data.apply(lambda x: x[0] if x else None)
+df['nearest_ubahn'] = ubahn_data.apply(lambda x: x[1] if x else None)
 
 # Create Fingerprint for tracking
 print("Generating property fingerprints...")
