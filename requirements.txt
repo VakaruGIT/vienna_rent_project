@@ -1,18 +1,4 @@
-# Core web scraping
-selenium==4.16.0
-requests==2.31.0
-
-# Data processing
-pandas==2.2.0
-numpy==1.26.3
-
-# Visualization
-folium==0.15.1
-
-# Machine learning
-scikit-learn==1.4.0
-
-# Dashboard 
 streamlit
-streamlit-folium
+pandas
+scikit-learn
 altair
