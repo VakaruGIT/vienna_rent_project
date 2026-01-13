@@ -167,12 +167,21 @@ with tab1:
             df_filtered['deal_score'] = df_filtered['price'] - df_filtered['predicted']
             
             # Sort by biggest savings (negative deal score)
-            deals = df_filtered.sort_values('deal_score').head(10)
+            deals_all = df_filtered.sort_values('deal_score')
+            
+            # Control for how many to show
+            col_a, col_b = st.columns([3, 1])
+            with col_a:
+                show_count = st.slider("Number of listings to display", 5, min(100, len(deals_all)), min(20, len(deals_all)))
+            with col_b:
+                st.metric("Total Deals", len(deals_all[deals_all['deal_score'] < 0]))
+            
+            deals = deals_all.head(show_count)
             
             if deals.empty:
                 st.info("No listings match your filters.")
             
-            for _, row in deals.iterrows():
+            for idx, (_, row) in enumerate(deals.iterrows(), 1):
                 with st.container(border=True):
                     c1, c2, c3 = st.columns([3, 1, 1])
                     
