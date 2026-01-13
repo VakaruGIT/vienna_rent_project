@@ -205,21 +205,33 @@ with tab1:
             df_filtered['deal_score'] = df_filtered['price'] - df_filtered['predicted']
             
             # Sort by biggest savings (negative deal score)
-            deals_all = df_filtered.sort_values('deal_score')
+            df_filtered = df_filtered.sort_values('deal_score')
+            
+            # Toggle to show all or only deals
+            show_all = st.checkbox("Show all listings (including overpriced)", value=False)
+            
+            if show_all:
+                deals_all = df_filtered
+            else:
+                deals_all = df_filtered[df_filtered['deal_score'] < 0]
             
             # Control for how many to show (handle edge cases with few listings)
             col_a, col_b = st.columns([3, 1])
             with col_a:
                 max_listings = len(deals_all)
-                if max_listings <= 5:
+                if max_listings == 0:
+                    st.info("No deals found. Try adjusting filters or enable 'Show all listings'.")
+                elif max_listings <= 5:
                     show_count = max_listings
-                    st.caption(f"Showing all {max_listings} listings")
+                    st.caption(f"Showing all {max_listings} {'listing' if max_listings == 1 else 'listings'}")
                 else:
                     show_count = st.slider("Number of listings to display", 5, max_listings, max_listings)
             with col_b:
-                st.metric("Total Deals", len(deals_all[deals_all['deal_score'] < 0]))
+                total_filtered = len(df_filtered)
+                total_deals = len(df_filtered[df_filtered['deal_score'] < 0])
+                st.metric("Deals Found", f"{total_deals}/{total_filtered}")
             
-            deals = deals_all.head(show_count)
+            deals = deals_all.head(show_count) if max_listings > 0 else deals_all
             
             if deals.empty:
                 st.info("No listings match your filters.")
