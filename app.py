@@ -42,13 +42,13 @@ model = model_data['model'] if model_data else None
 model_features = model_data['features'] if model_data else None
 
 # --- 3. SIDEBAR CONTROLS ---
-# District name mapping
+# District name mapping (postal codes to names)
 DISTRICT_NAMES = {
-    1: "Innere Stadt", 2: "Leopoldstadt", 3: "Landstraße", 4: "Wieden", 5: "Margareten",
-    6: "Mariahilf", 7: "Neubau", 8: "Josefstadt", 9: "Alsergrund", 10: "Favoriten",
-    11: "Simmering", 12: "Meidling", 13: "Hietzing", 14: "Penzing", 15: "Rudolfsheim-Fünfhaus",
-    16: "Ottakring", 17: "Hernals", 18: "Währing", 19: "Döbling", 20: "Brigittenau",
-    21: "Floridsdorf", 22: "Donaustadt", 23: "Liesing"
+    1010: "Innere Stadt", 1020: "Leopoldstadt", 1030: "Landstraße", 1040: "Wieden", 1050: "Margareten",
+    1060: "Mariahilf", 1070: "Neubau", 1080: "Josefstadt", 1090: "Alsergrund", 1100: "Favoriten",
+    1110: "Simmering", 1120: "Meidling", 1130: "Hietzing", 1140: "Penzing", 1150: "Rudolfsheim-Fünfhaus",
+    1160: "Ottakring", 1170: "Hernals", 1180: "Währing", 1190: "Döbling", 1200: "Brigittenau",
+    1210: "Floridsdorf", 1220: "Donaustadt", 1230: "Liesing"
 }
 
 with st.sidebar:
@@ -57,7 +57,7 @@ with st.sidebar:
     if df is not None:
         # District filter with names
         districts = sorted(df['district'].unique())
-        district_options = [f"{d} ({DISTRICT_NAMES.get(d, 'Unknown')})" for d in districts]
+        district_options = [f"{int(d)} ({DISTRICT_NAMES.get(int(d), 'Unknown')})" for d in districts]
         sel_dist_display = st.multiselect("Districts", district_options, default=[])
         sel_dist = [int(d.split()[0]) for d in sel_dist_display] if sel_dist_display else []
         
