@@ -361,7 +361,15 @@ This project is for educational and personal use only. Users must respect willha
 
 MIT License
 
+## Legal Disclaimer
+
+This software is for educational and research purposes only.
+The data collected is processed to analyze housing market trends and is not used for commercial redistribution.
+Users are responsible for complying with the Terms of Service and `robots.txt` of any website they scrape.
+The author assumes no liability for misuse of this tool.
+
 ## Author
+Andrei-Flavius Vacaru
 
 Data engineering portfolio project demonstrating end-to-end pipeline development, geospatial analysis, and machine learning integration.
 
