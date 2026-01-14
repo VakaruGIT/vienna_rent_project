@@ -353,20 +353,13 @@ Potential improvements:
 - Price anomaly detection
 - Integration with property APIs
 
-## Legal Notice
+## License & Legal
 
-This project is for educational and personal use only. Users must respect willhaben.at's terms of service and robots.txt guidelines. The authors assume no responsibility for misuse.
+This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](LICENSE) file for details.
 
-## License
+### Legal Disclaimer
 
-MIT License
-
-## Legal Disclaimer
-
-This software is for educational and research purposes only.
-The data collected is processed to analyze housing market trends and is not used for commercial redistribution.
-Users are responsible for complying with the Terms of Service and `robots.txt` of any website they scrape.
-The author assumes no liability for misuse of this tool.
+This software is for educational and research purposes only. The data collected is processed to analyze housing market trends and is not used for commercial redistribution. Users are responsible for complying with the Terms of Service and `robots.txt` of any website they scrape. The author assumes no liability for misuse of this tool.
 
 ## Author
 Andrei-Flavius Vacaru
